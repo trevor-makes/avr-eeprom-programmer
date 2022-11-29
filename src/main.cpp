@@ -11,13 +11,41 @@ using core::cli::Args;
 core::serial::StreamEx serialEx(Serial);
 core::cli::CLI<> serialCli(serialEx);
 
+template <typename PIN>
+struct ActiveLow {
+  static inline void config_output() {
+    PIN::config_output();
+    disable();
+  }
+  static inline void enable() {
+    PIN::clear();
+  }
+  static inline void disable() {
+    PIN::set();
+  }
+};
+
+template <typename PIN>
+struct ActiveHigh {
+  static inline void config_output() {
+    PIN::config_output();
+    disable();
+  }
+  static inline void enable() {
+    PIN::set();
+  }
+  static inline void disable() {
+    PIN::clear();
+  }
+};
+
 #ifdef __AVR_ATmega328P__
 CORE_PORT(B)
 CORE_PORT(C)
 CORE_PORT(D)
 
-using MSBLatch = PortC::Bit<5>;
-using LSBLatch = PortC::Bit<4>;
+using MSBLatch = ActiveHigh<PortC::Bit<5>>;
+using LSBLatch = ActiveHigh<PortC::Bit<4>>;
 using ReadEnable = PortC::Bit<3>;
 using WriteEnable = PortC::Bit<2>;
 
@@ -35,7 +63,6 @@ struct Latch {
     // TODO enable OUTPUT_ENABLE
     // TODO should LATCH_ENABLE be configured here?
     LATCH_ENABLE::config_output();
-    LATCH_ENABLE::clear();
   }
   static inline void config_input() {
     // TODO disable OUTPUT_ENABLE
@@ -45,8 +72,8 @@ struct Latch {
     // TODO maybe config_* should be private and done as part of read/write
     //DATA::config_output();
     DATA::write(data);
-    LATCH_ENABLE::set();
-    LATCH_ENABLE::clear();
+    LATCH_ENABLE::enable();
+    LATCH_ENABLE::disable();
   }
 };
 
