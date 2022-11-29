@@ -61,19 +61,20 @@ struct Latch {
   using TYPE = typename DATA::TYPE;
   static inline void config_output() {
     // TODO enable OUTPUT_ENABLE
-    // TODO should LATCH_ENABLE be configured here?
+    // NOTE don't config DATA until write()
     LATCH_ENABLE::config_output();
   }
   static inline void config_input() {
     // TODO disable OUTPUT_ENABLE
+    //LATCH_ENABLE::config_float_disable();
   }
   static inline void write(TYPE data) {
-    // TODO may need to push/pop DDR, especially when bus is doing a read
-    // TODO maybe config_* should be private and done as part of read/write
-    //DATA::config_output();
+    auto config = DATA::save_config();
+    DATA::config_output();
     DATA::write(data);
     LATCH_ENABLE::enable();
     LATCH_ENABLE::disable();
+    DATA::restore_config(config);
   }
 };
 
@@ -92,37 +93,42 @@ void setup() {
   while (!Serial) {}
 }
 
-void write_lsb(Args);
-void write_msb(Args);
-void write_data(Args);
+void set_lsb(Args);
+void set_msb(Args);
+void set_data(Args);
 void write_bus(Args);
+void read_bus(Args);
 
 void loop() {
   static const core::cli::Command commands[] = {
-    { "lsb", write_lsb },
-    { "msb", write_msb },
-    { "data", write_data },
-    { "bus", write_bus },
+    { "lsb", set_lsb },
+    { "msb", set_msb },
+    { "data", set_data },
+    { "write", write_bus },
+    { "read", read_bus },
   };
 
   serialCli.run_once(commands);
 }
 
-void write_lsb(Args args) {
+void set_lsb(Args args) {
   uint8_t data = 0;
   core::mon::parse_unsigned(data, args.next());
+  AddressLSB::config_output();
   AddressLSB::write(data);
 }
 
-void write_msb(Args args) {
+void set_msb(Args args) {
   uint8_t data = 0;
   core::mon::parse_unsigned(data, args.next());
+  AddressMSB::config_output();
   AddressMSB::write(data);
 }
 
-void write_data(Args args) {
+void set_data(Args args) {
   uint8_t data = 0;
   core::mon::parse_unsigned(data, args.next());
+  DataBus::config_output();
   DataBus::write(data);
 }
 
@@ -131,5 +137,14 @@ void write_bus(Args args) {
   uint8_t data = 0;
   core::mon::parse_unsigned(addr, args.next());
   core::mon::parse_unsigned(data, args.next());
+  Bus::config_write();
   Bus::write_byte(addr, data);
+}
+
+void read_bus(Args args) {
+  uint16_t addr = 0;
+  core::mon::parse_unsigned(addr, args.next());
+  Bus::config_read();
+  uint8_t data = Bus::read_byte(addr);
+  serialEx.println(data, HEX);
 }
