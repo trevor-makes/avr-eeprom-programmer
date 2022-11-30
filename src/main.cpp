@@ -61,20 +61,18 @@ struct Latch {
   using TYPE = typename DATA::TYPE;
   static inline void config_output() {
     // TODO enable OUTPUT_ENABLE
-    // NOTE don't config DATA until write()
+    DATA::config_output();
     LATCH_ENABLE::config_output();
   }
   static inline void config_input() {
     // TODO disable OUTPUT_ENABLE
-    //LATCH_ENABLE::config_float_disable();
+    // NOTE don't need to config DATA
+    // TODO LATCH_ENABLE::config_float_disable();
   }
   static inline void write(TYPE data) {
-    auto config = DATA::save_config();
-    DATA::config_output();
     DATA::write(data);
     LATCH_ENABLE::enable();
     LATCH_ENABLE::disable();
-    DATA::restore_config(config);
   }
 };
 
