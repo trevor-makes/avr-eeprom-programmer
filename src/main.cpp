@@ -10,42 +10,16 @@
 using core::cli::Args;
 core::serial::StreamEx serialEx(Serial);
 core::cli::CLI<> serialCli(serialEx);
-
-template <typename PIN>
-struct ActiveLow {
-  static inline void config_output() {
-    PIN::config_output();
-    disable();
-  }
-  static inline void enable() {
-    PIN::clear();
-  }
-  static inline void disable() {
-    PIN::set();
-  }
-};
-
-template <typename PIN>
-struct ActiveHigh {
-  static inline void config_output() {
-    PIN::config_output();
-    disable();
-  }
-  static inline void enable() {
-    PIN::set();
-  }
-  static inline void disable() {
-    PIN::clear();
-  }
-};
+using core::io::ActiveHigh;
+using core::io::ActiveLow;
 
 #ifdef __AVR_ATmega328P__
 CORE_PORT(B)
 CORE_PORT(C)
 CORE_PORT(D)
 
-using MSBLatch = ActiveHigh<PortC::Bit<5>>;
-using LSBLatch = ActiveHigh<PortC::Bit<4>>;
+using MSBLatch = PortC::Bit<5>;
+using LSBLatch = PortC::Bit<4>;
 using ReadEnable = PortC::Bit<3>;
 using WriteEnable = PortC::Bit<2>;
 
@@ -55,29 +29,8 @@ using DataBus = core::io::BitExtend<PortD::Mask<0xF0>, PortB::Mask<0x0F>>;
 #error Need to provide configuration for current platform. See __AVR_ATmega328P__ configuration above.
 #endif
 
-// TODO move into core::io?
-template <typename DATA, typename LATCH_ENABLE/*, typename OUTPUT_ENABLE*/>
-struct Latch {
-  using TYPE = typename DATA::TYPE;
-  static inline void config_output() {
-    // TODO enable OUTPUT_ENABLE
-    DATA::config_output();
-    LATCH_ENABLE::config_output();
-  }
-  static inline void config_input() {
-    // TODO disable OUTPUT_ENABLE
-    // NOTE don't need to config DATA
-    // TODO LATCH_ENABLE::config_float_disable();
-  }
-  static inline void write(TYPE data) {
-    DATA::write(data);
-    LATCH_ENABLE::enable();
-    LATCH_ENABLE::disable();
-  }
-};
-
-using AddressMSB = Latch<DataBus, MSBLatch>;
-using AddressLSB = Latch<DataBus, LSBLatch>;
+using AddressMSB = core::io::Latch<DataBus, ActiveHigh<MSBLatch>>;
+using AddressLSB = core::io::Latch<DataBus, ActiveHigh<LSBLatch>>;
 using AddressBus = core::io::WordExtend<AddressMSB, AddressLSB>;
 
 using Control = core::io::Control<ReadEnable, WriteEnable>;
