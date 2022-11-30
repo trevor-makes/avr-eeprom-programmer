@@ -33,7 +33,7 @@ using AddressMSB = core::io::Latch<DataBus, ActiveHigh<MSBLatch>>;
 using AddressLSB = core::io::Latch<DataBus, ActiveHigh<LSBLatch>>;
 using AddressBus = core::io::WordExtend<AddressMSB, AddressLSB>;
 
-using Control = core::io::Control<ReadEnable, WriteEnable>;
+using Control = core::io::Control<ActiveLow<ReadEnable>, ActiveLow<WriteEnable>>;
 using Bus = core::io::Bus<AddressBus, DataBus, Control>;
 
 void setup() {
