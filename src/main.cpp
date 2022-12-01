@@ -11,6 +11,20 @@ using core::cli::Args;
 core::serial::StreamEx serialEx(Serial);
 core::cli::CLI<> serialCli(serialEx);
 
+// EEPROM needs at least 70 ns before reading data after pulling chip select low
+// Wrap the data port with this template to insert the required delay
+// TODO maybe this should be integrated into core::io::Control or Bus
+template <typename DATA>
+struct DelayRead : DATA {
+  using TYPE = typename DATA::TYPE;
+  static inline TYPE read() {
+    // Each NOP delays only 65 ns at 16 MHz, so we need two
+    __asm__ __volatile__("nop");
+    __asm__ __volatile__("nop");
+    return DATA::read();
+  }
+};
+
 #ifdef __AVR_ATmega328P__
 
 // Create Port* wrappers around AVR ports B, C, D
@@ -33,7 +47,7 @@ using ReadEnable = core::io::ActiveLow<PortC::Bit<3>>;
 using WriteEnable = core::io::ActiveLow<PortC::Bit<2>>;
 using Control = core::io::Control<ReadEnable, WriteEnable>;
 
-using Bus = core::io::Bus<AddressPort, DataPort, Control>;
+using Bus = core::io::Bus<AddressPort, DelayRead<DataPort>, Control>;
 
 #else
 #error Need to provide configuration for current platform. See __AVR_ATmega328P__ configuration above.
