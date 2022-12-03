@@ -3,14 +3,18 @@
 #include "core/io.hpp"
 #include "core/io/bus.hpp"
 #include "core/cli.hpp"
-#include "core/mon/format.hpp"
+#include "core/mon.hpp"
 
 #include <Arduino.h>
 
 using core::cli::Args;
 using core::mon::parse_unsigned;
-core::serial::StreamEx serialEx(Serial);
-core::cli::CLI<> serialCli(serialEx);
+using core::serial::StreamEx;
+using CLI = core::cli::CLI<>;
+
+// Create command line interface around Arduino Serial
+StreamEx serialEx(Serial);
+CLI serialCli(serialEx);
 
 using core::io::ActiveLow;
 using core::io::ActiveHigh;
@@ -74,6 +78,13 @@ void set_data(Args);
 void write_bus(Args);
 void read_bus(Args);
 
+// Define interface for core::mon function templates
+struct API : core::mon::Base<API> {
+  static constexpr auto& read_byte = Bus::read_byte;
+  static StreamEx& get_stream() { return serialEx; }
+  static CLI& get_cli() { return serialCli; }
+};
+
 void loop() {
   static const core::cli::Command commands[] = {
     { "lsb", set_lsb },
@@ -81,6 +92,7 @@ void loop() {
     { "data", set_data },
     { "write", write_bus },
     { "read", read_bus },
+    { "hex", core::mon::cmd_hex<API> }
   };
 
   serialCli.run_once(commands);
