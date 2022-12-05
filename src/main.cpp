@@ -80,6 +80,32 @@ void read_bus(Args);
 
 void measure_page_write(Args);
 
+// TODO make this a wrapper around Bus?
+// static constexpr auto& write_byte = eeprom_write;
+void eeprom_write(uint16_t address, uint8_t data) {
+  // TODO would need page_buf from write -and- flush, so should be static member of Bus wrapper struct?
+  // TODO need a bitfield  to handle partial page writes?
+  static uint8_t page_buf[64];
+  //static uint16_t last_page = 0; // ????
+  uint16_t page = address & ~63;
+  uint8_t index = address & 63;
+  page_buf[index] = data;
+  // TODO instead of flushing on index 63 (assumes write in ascending order)
+  // - when page != last_page
+  // - when explicit flush() is called
+  if (index == 63) {
+    /*if (last write maybe pending) {
+      // poll until last write complete (max 10ms)
+      while (Bus::read_byte(last_address) != last_data) {}
+    }*/
+    Bus::config_write(); // TODO config should be done by mon
+    for (uint8_t i = 0; i < 64; ++i) { 
+      Bus::write_byte(page + i, page_buf[i]);
+    }
+    Bus::config_read(); // TODO config should be done by mon
+  }
+}
+
 // Replace write_byte to measure IHX import rate
 // static constexpr auto& write_byte = measure_import;
 void measure_import(uint16_t address, uint8_t data) {
@@ -97,7 +123,7 @@ struct API : core::mon::Base<API> {
   // - mon should use config_read/config_write internally
   // - maybe add a flush_write to help with EEPROM buffering?
   static constexpr auto& read_byte = Bus::read_byte;
-  static constexpr auto& write_byte = measure_import;
+  static constexpr auto& write_byte = eeprom_write;
   static StreamEx& get_stream() { return serialEx; }
   static CLI& get_cli() { return serialCli; }
 };
