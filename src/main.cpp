@@ -78,9 +78,26 @@ void set_data(Args);
 void write_bus(Args);
 void read_bus(Args);
 
+void measure_page_write(Args);
+
+// Replace write_byte to measure IHX import rate
+// static constexpr auto& write_byte = measure_import;
+void measure_import(uint16_t address, uint8_t data) {
+  static auto t1 = millis();
+  if ((address & 63) == 63) {
+    auto t2 = millis();
+    serialEx.println(t2 - t1);
+    t1 = t2;
+  }
+}
+
 // Define interface for core::mon function templates
 struct API : core::mon::Base<API> {
+  // TODO API/Base should use something like `using Bus = Bus;`
+  // - mon should use config_read/config_write internally
+  // - maybe add a flush_write to help with EEPROM buffering?
   static constexpr auto& read_byte = Bus::read_byte;
+  static constexpr auto& write_byte = measure_import;
   static StreamEx& get_stream() { return serialEx; }
   static CLI& get_cli() { return serialCli; }
 };
@@ -92,7 +109,10 @@ void loop() {
     { "data", set_data },
     { "write", write_bus },
     { "read", read_bus },
-    { "hex", core::mon::cmd_hex<API> }
+    { "hex", core::mon::cmd_hex<API> },
+    { "export", core::mon::cmd_export<API> },
+    { "import", core::mon::cmd_import<API> },
+    { "measure", measure_page_write },
   };
 
   serialCli.run_once(commands);
@@ -126,6 +146,13 @@ void write_bus(Args args) {
   parse_unsigned(data, args.next());
   Bus::config_write();
   Bus::write_byte(addr, data);
+
+  // Measure data polling to completion
+  Bus::config_read();
+  auto t1 = millis();
+  while (Bus::read_byte(addr) != data) {}
+  auto t2 = millis();
+  serialEx.println(t2 - t1);
 }
 
 void read_bus(Args args) {
@@ -134,4 +161,24 @@ void read_bus(Args args) {
   Bus::config_read();
   uint8_t data = Bus::read_byte(addr);
   serialEx.println(data, HEX);
+}
+
+// Measure EEPROM page load/write timing
+void measure_page_write(Args) {
+  Bus::config_write();
+
+  // Measure 64 byte page load
+  auto t1 = micros();
+  for (uint16_t addr = 0x140; addr < 0x180; ++addr) {
+    Bus::write_byte(addr, addr);
+  }
+  auto t2 = micros();
+
+  // Measure data polling to completion
+  Bus::config_read();
+  while (Bus::read_byte(0x17F) != 0x7F) {}
+  auto t3 = micros();
+
+  serialEx.println(t2 - t1);
+  serialEx.println(t3 - t2);
 }
