@@ -80,50 +80,73 @@ void read_bus(Args);
 
 void measure_page_write(Args);
 
-// TODO make this a wrapper around Bus?
-// static constexpr auto& write_byte = eeprom_write;
-void eeprom_write(uint16_t address, uint8_t data) {
-  // TODO would need page_buf from write -and- flush, so should be static member of Bus wrapper struct?
-  // TODO need a bitfield  to handle partial page writes?
-  static uint8_t page_buf[64];
-  //static uint16_t last_page = 0; // ????
-  uint16_t page = address & ~63;
-  uint8_t index = address & 63;
-  page_buf[index] = data;
-  // TODO instead of flushing on index 63 (assumes write in ascending order)
-  // - when page != last_page
-  // - when explicit flush() is called
-  if (index == 63) {
+template <typename BUS, uint8_t PAGE_SIZE = 64>
+struct PagedWrite : BUS {
+  static_assert(util::is_power_of_two(PAGE_SIZE), "");
+  using typename BUS::DATA_TYPE;
+  using typename BUS::ADDRESS_TYPE;
+
+  static DATA_TYPE page_buf[PAGE_SIZE];
+  static bool page_mask[PAGE_SIZE]; // TODO compact bitfield instead of bool array?
+  static ADDRESS_TYPE last_page;
+  // TODO maybe store last address (instead of page) and data for polling
+
+  static void write_byte(ADDRESS_TYPE address, DATA_TYPE data) {
+    ADDRESS_TYPE page = address & ~(PAGE_SIZE - 1);
+    uint8_t index = address & (PAGE_SIZE - 1);
+    if (page != last_page) {
+      flush_write();
+      last_page = page;
+    }
+    page_buf[index] = data;
+    page_mask[index] = true;
+  }
+
+  static void flush_write() {
     /*if (last write maybe pending) {
       // poll until last write complete (max 10ms)
+      Bus::config_read();
       while (Bus::read_byte(last_address) != last_data) {}
     }*/
-    Bus::config_write(); // TODO config should be done by mon
-    for (uint8_t i = 0; i < 64; ++i) { 
-      Bus::write_byte(page + i, page_buf[i]);
+    BUS::config_write();
+    for (uint8_t i = 0; i < PAGE_SIZE; ++i) { 
+      if (page_mask[i]) {
+        BUS::write_byte(last_page + i, page_buf[i]);
+        page_mask[i] = false;
+      }
     }
-    Bus::config_read(); // TODO config should be done by mon
+    BUS::flush_write();
   }
-}
+};
 
-// Replace write_byte to measure IHX import rate
-// static constexpr auto& write_byte = measure_import;
-void measure_import(uint16_t address, uint8_t data) {
-  static auto t1 = millis();
-  if ((address & 63) == 63) {
-    auto t2 = millis();
-    serialEx.println(t2 - t1);
-    t1 = t2;
+template <typename BUS, uint8_t PAGE_SIZE>
+typename BUS::DATA_TYPE PagedWrite<BUS, PAGE_SIZE>::page_buf[PAGE_SIZE];
+
+template <typename BUS, uint8_t PAGE_SIZE>
+bool PagedWrite<BUS, PAGE_SIZE>::page_mask[PAGE_SIZE] = {}; // zero-initialized
+
+template <typename BUS, uint8_t PAGE_SIZE>
+typename BUS::ADDRESS_TYPE PagedWrite<BUS, PAGE_SIZE>::last_page = 0;
+
+// Hook write_byte to measure IHX transfer rate
+template <typename BUS>
+struct MeasureImport : BUS {
+  using typename BUS::DATA_TYPE;
+  using typename BUS::ADDRESS_TYPE;
+
+  static void write_byte(ADDRESS_TYPE address, DATA_TYPE data) {
+    static auto t1 = millis();
+    if ((address & 63) == 63) {
+      auto t2 = millis();
+      serialEx.println(t2 - t1);
+      t1 = t2;
+    }
   }
-}
+};
 
 // Define interface for core::mon function templates
 struct API : core::mon::Base<API> {
-  // TODO API/Base should use something like `using Bus = Bus;`
-  // - mon should use config_read/config_write internally
-  // - maybe add a flush_write to help with EEPROM buffering?
-  static constexpr auto& read_byte = Bus::read_byte;
-  static constexpr auto& write_byte = eeprom_write;
+  using BUS = PagedWrite<Bus>;
   static StreamEx& get_stream() { return serialEx; }
   static CLI& get_cli() { return serialCli; }
 };
