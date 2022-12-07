@@ -86,7 +86,7 @@ struct PagedWrite : BUS {
   using typename BUS::DATA_TYPE;
   using typename BUS::ADDRESS_TYPE;
 
-  static DATA_TYPE page_buf[PAGE_SIZE];
+  static DATA_TYPE page_data[PAGE_SIZE];
   static bool page_mask[PAGE_SIZE]; // TODO compact bitfield instead of bool array?
   static ADDRESS_TYPE last_page;
   // TODO maybe store last address (instead of page) and data for polling
@@ -98,7 +98,7 @@ struct PagedWrite : BUS {
       flush_write();
       last_page = page;
     }
-    page_buf[index] = data;
+    page_data[index] = data;
     page_mask[index] = true;
   }
 
@@ -111,7 +111,7 @@ struct PagedWrite : BUS {
     BUS::config_write();
     for (uint8_t i = 0; i < PAGE_SIZE; ++i) { 
       if (page_mask[i]) {
-        BUS::write_byte(last_page + i, page_buf[i]);
+        BUS::write_byte(last_page + i, page_data[i]);
         page_mask[i] = false;
       }
     }
@@ -120,7 +120,7 @@ struct PagedWrite : BUS {
 };
 
 template <typename BUS, uint8_t PAGE_SIZE>
-typename BUS::DATA_TYPE PagedWrite<BUS, PAGE_SIZE>::page_buf[PAGE_SIZE];
+typename BUS::DATA_TYPE PagedWrite<BUS, PAGE_SIZE>::page_data[PAGE_SIZE];
 
 template <typename BUS, uint8_t PAGE_SIZE>
 bool PagedWrite<BUS, PAGE_SIZE>::page_mask[PAGE_SIZE] = {}; // zero-initialized
@@ -161,6 +161,7 @@ void loop() {
     { "hex", core::mon::cmd_hex<API> },
     { "export", core::mon::cmd_export<API> },
     { "import", core::mon::cmd_import<API> },
+    { "validate", core::mon::cmd_validate<API> },
     { "measure", measure_page_write },
   };
 
