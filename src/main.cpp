@@ -82,7 +82,7 @@ void measure_page_write(Args);
 
 template <typename BUS, uint8_t PAGE_SIZE = 64>
 struct PagedWrite : BUS {
-  static_assert(util::is_power_of_two(PAGE_SIZE), "");
+  static_assert(core::util::is_power_of_two(PAGE_SIZE), "");
   using typename BUS::DATA_TYPE;
   using typename BUS::ADDRESS_TYPE;
 
