@@ -93,7 +93,7 @@ struct PagedWrite : BUS {
   static bool page_mask[PAGE_SIZE]; // TODO compact bitfield instead of bool array?
   static ADDRESS_TYPE cached_page;
 
-  static void write_byte(ADDRESS_TYPE address, DATA_TYPE data) {
+  static void write_data(ADDRESS_TYPE address, DATA_TYPE data) {
     // If last address was on a different page, flush the last page
     ADDRESS_TYPE page = address & PAGE_MASK;
     if (page != cached_page) {
@@ -114,7 +114,7 @@ struct PagedWrite : BUS {
     // Poll until last BUS write is complete (max 10ms)
     if (is_flushing) {
       BUS::config_read();
-      while (BUS::read_byte(poll_address) != poll_data) {}
+      while (BUS::read_data(poll_address) != poll_data) {}
       is_flushing = false;
     }
     // Flush cached page data to BUS
@@ -123,7 +123,7 @@ struct PagedWrite : BUS {
       if (page_mask[i]) {
         ADDRESS_TYPE address = cached_page + i;
         DATA_TYPE data = page_data[i];
-        BUS::write_byte(address, data);
+        BUS::write_data(address, data);
         page_mask[i] = false;
         // Save last written data so next flush can poll until EEPROM is ready
         poll_address = address;
@@ -154,13 +154,13 @@ typename BUS::DATA_TYPE PagedWrite<BUS, PAGE_SIZE>::poll_data;
 template <typename BUS, uint8_t PAGE_SIZE>
 bool PagedWrite<BUS, PAGE_SIZE>::is_flushing = false;
 
-// Hook write_byte to measure IHX transfer rate
+// Hook write_data to measure IHX transfer rate
 template <typename BUS>
 struct MeasureImport : BUS {
   using typename BUS::DATA_TYPE;
   using typename BUS::ADDRESS_TYPE;
 
-  static void write_byte(ADDRESS_TYPE address, DATA_TYPE data) {
+  static void write_data(ADDRESS_TYPE address, DATA_TYPE data) {
     static auto t1 = millis();
     if ((address & 63) == 63) {
       auto t2 = millis();
@@ -224,12 +224,12 @@ void write_bus(Args args) {
   parse_unsigned(addr, args.next());
   parse_unsigned(data, args.next());
   Bus::config_write();
-  Bus::write_byte(addr, data);
+  Bus::write_data(addr, data);
 
   // Measure data polling to completion
   Bus::config_read();
   auto t1 = millis();
-  while (Bus::read_byte(addr) != data) {}
+  while (Bus::read_data(addr) != data) {}
   auto t2 = millis();
   serialEx.println(t2 - t1);
 }
@@ -238,7 +238,7 @@ void read_bus(Args args) {
   uint16_t addr = 0;
   parse_unsigned(addr, args.next());
   Bus::config_read();
-  uint8_t data = Bus::read_byte(addr);
+  uint8_t data = Bus::read_data(addr);
   serialEx.println(data, HEX);
 }
 
@@ -249,13 +249,13 @@ void measure_page_write(Args) {
   // Measure 64 byte page load
   auto t1 = micros();
   for (uint16_t addr = 0x140; addr < 0x180; ++addr) {
-    Bus::write_byte(addr, addr);
+    Bus::write_data(addr, addr);
   }
   auto t2 = micros();
 
   // Measure data polling to completion
   Bus::config_read();
-  while (Bus::read_byte(0x17F) != 0x7F) {}
+  while (Bus::read_data(0x17F) != 0x7F) {}
   auto t3 = micros();
 
   serialEx.println(t2 - t1);
