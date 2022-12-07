@@ -82,39 +82,56 @@ void measure_page_write(Args);
 
 template <typename BUS, uint8_t PAGE_SIZE = 64>
 struct PagedWrite : BUS {
-  static_assert(core::util::is_power_of_two(PAGE_SIZE), "");
   using typename BUS::DATA_TYPE;
   using typename BUS::ADDRESS_TYPE;
 
+  static_assert(core::util::is_power_of_two(PAGE_SIZE), "");
+  static constexpr const ADDRESS_TYPE INDEX_MASK = PAGE_SIZE - 1;
+  static constexpr const ADDRESS_TYPE PAGE_MASK = ~INDEX_MASK;
+
   static DATA_TYPE page_data[PAGE_SIZE];
   static bool page_mask[PAGE_SIZE]; // TODO compact bitfield instead of bool array?
-  static ADDRESS_TYPE last_page;
-  // TODO maybe store last address (instead of page) and data for polling
+  static ADDRESS_TYPE cached_page;
 
   static void write_byte(ADDRESS_TYPE address, DATA_TYPE data) {
-    ADDRESS_TYPE page = address & ~(PAGE_SIZE - 1);
-    uint8_t index = address & (PAGE_SIZE - 1);
-    if (page != last_page) {
+    // If last address was on a different page, flush the last page
+    ADDRESS_TYPE page = address & PAGE_MASK;
+    if (page != cached_page) {
       flush_write();
-      last_page = page;
+      cached_page = page;
     }
+    // Cache data until page is flushed
+    uint8_t index = address & INDEX_MASK;
     page_data[index] = data;
     page_mask[index] = true;
   }
 
+  static ADDRESS_TYPE poll_address;
+  static DATA_TYPE poll_data;
+  static bool is_flushing;
+
   static void flush_write() {
-    /*if (last write maybe pending) {
-      // poll until last write complete (max 10ms)
-      Bus::config_read();
-      while (Bus::read_byte(last_address) != last_data) {}
-    }*/
+    // Poll until last BUS write is complete (max 10ms)
+    if (is_flushing) {
+      BUS::config_read();
+      while (BUS::read_byte(poll_address) != poll_data) {}
+      is_flushing = false;
+    }
+    // Flush cached page data to BUS
     BUS::config_write();
     for (uint8_t i = 0; i < PAGE_SIZE; ++i) { 
       if (page_mask[i]) {
-        BUS::write_byte(last_page + i, page_data[i]);
+        ADDRESS_TYPE address = cached_page + i;
+        DATA_TYPE data = page_data[i];
+        BUS::write_byte(address, data);
         page_mask[i] = false;
+        // Save last written data so next flush can poll until EEPROM is ready
+        poll_address = address;
+        poll_data = data;
+        is_flushing = true;
       }
     }
+    // Propagate flush to parent type in case it does something
     BUS::flush_write();
   }
 };
@@ -126,7 +143,16 @@ template <typename BUS, uint8_t PAGE_SIZE>
 bool PagedWrite<BUS, PAGE_SIZE>::page_mask[PAGE_SIZE] = {}; // zero-initialized
 
 template <typename BUS, uint8_t PAGE_SIZE>
-typename BUS::ADDRESS_TYPE PagedWrite<BUS, PAGE_SIZE>::last_page = 0;
+typename BUS::ADDRESS_TYPE PagedWrite<BUS, PAGE_SIZE>::cached_page;
+
+template <typename BUS, uint8_t PAGE_SIZE>
+typename BUS::ADDRESS_TYPE PagedWrite<BUS, PAGE_SIZE>::poll_address;
+
+template <typename BUS, uint8_t PAGE_SIZE>
+typename BUS::DATA_TYPE PagedWrite<BUS, PAGE_SIZE>::poll_data;
+
+template <typename BUS, uint8_t PAGE_SIZE>
+bool PagedWrite<BUS, PAGE_SIZE>::is_flushing = false;
 
 // Hook write_byte to measure IHX transfer rate
 template <typename BUS>
@@ -159,9 +185,12 @@ void loop() {
     { "write", write_bus },
     { "read", read_bus },
     { "hex", core::mon::cmd_hex<API> },
+    { "set", core::mon::cmd_set<API> },
+    { "fill", core::mon::cmd_fill<API> },
+    { "move", core::mon::cmd_move<API> },
     { "export", core::mon::cmd_export<API> },
     { "import", core::mon::cmd_import<API> },
-    { "validate", core::mon::cmd_validate<API> },
+    { "verify", core::mon::cmd_verify<API> },
     { "measure", measure_page_write },
   };
 
