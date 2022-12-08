@@ -11,6 +11,7 @@
 
 using core::serial::StreamEx;
 using CLI = core::cli::CLI<>;
+using core::cli::Args;
 
 // Create command line interface around Arduino Serial
 StreamEx serialEx(Serial);
@@ -72,7 +73,14 @@ using ReadEnable = ActiveLow<PortC::Bit<3>>;
 using WriteEnable = ActiveLow<PortC::Bit<2>>;
 using Control = core::io::Control<ReadEnable, WriteEnable>;
 
+// Wrap data with delay adapter to insert required 70+ ns delay between output enable and read
 using Bus = core::io::Bus<AddressPort, DelayRead<DataPort>, Control>;
+
+// Wrap bus with paged write adapter
+// The paged write mode permits an entire page (64 for AT28C64) to be written at once
+// This requires less than 150 us between writes, followed by up to 10 ms of inactivity while programming
+// The adapter will cache the pages on the Arduino and flush writes at once to meet timing requirements
+using PagedBus = PagedWrite<Bus>;
 
 #else
 #error Need to provide configuration for current platform. See __AVR_ATmega328P__ configuration above.
@@ -88,10 +96,14 @@ void setup() {
 
 // Define interface for core::mon function templates
 struct API : core::mon::Base<API> {
-  using BUS = PagedWrite<Bus>;
   static StreamEx& get_stream() { return serialEx; }
   static CLI& get_cli() { return serialCli; }
+  using BUS = PagedBus;
 };
+
+void erase(Args);
+void unlock(Args);
+void lock(Args);
 
 void loop() {
   static const core::cli::Command commands[] = {
@@ -102,7 +114,46 @@ void loop() {
     { "export", core::mon::cmd_export<API> },
     { "import", core::mon::cmd_import<API> },
     { "verify", core::mon::cmd_verify<API> },
+    { "erase", erase },
+    { "unlock", unlock },
+    { "lock", lock },
   };
 
   serialCli.run_once(commands);
+}
+
+void erase(Args) {
+  // Special command sequence to erase all bytes to FF
+  // Don't used PagedWrite adapter because data polling will fail
+  Bus::config_write();
+  Bus::write_data(0x5555, 0xAA);
+  Bus::write_data(0xAAAA, 0x55);
+  Bus::write_data(0x5555, 0x80);
+  Bus::write_data(0x5555, 0xAA);
+  Bus::write_data(0xAAAA, 0x55);
+  Bus::write_data(0x5555, 0x10);
+  delay(20); // erase takes up to 20 ms
+}
+
+void unlock(Args) {
+  // Special command sequence to disable software data protection
+  // Don't used PagedWrite adapter because data polling will fail
+  Bus::config_write();
+  Bus::write_data(0x5555, 0xAA);
+  Bus::write_data(0xAAAA, 0x55);
+  Bus::write_data(0x5555, 0x80);
+  Bus::write_data(0x5555, 0xAA);
+  Bus::write_data(0xAAAA, 0x55);
+  Bus::write_data(0x5555, 0x20);
+  delay(10); // unlock takes up to 10 ms
+}
+
+void lock(Args) {
+  // Special command sequence to enable software data protection
+  // Don't used PagedWrite adapter because data polling will fail
+  Bus::config_write();
+  Bus::write_data(0x5555, 0xAA);
+  Bus::write_data(0xAAAA, 0x55);
+  Bus::write_data(0x5555, 0xA0);
+  delay(10); // lock takes up to 10 ms
 }

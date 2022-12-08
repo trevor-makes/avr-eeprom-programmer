@@ -2,7 +2,6 @@
 
 #if 0
 
-using core::cli::Args;
 using core::mon::parse_unsigned;
 
 void set_lsb(Args args) {
