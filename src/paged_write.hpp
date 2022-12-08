@@ -40,7 +40,11 @@ struct PagedWrite : BUS {
     // Poll until last BUS write is complete (max 10ms)
     if (is_flushing) {
       BUS::config_read();
-      while (BUS::read_data(poll_address) != poll_data) {}
+      auto start = millis();
+      while (BUS::read_data(poll_address) != poll_data) {
+        // Break after 10 ms in case polling failed (data protection enabled)
+        if (millis() - start >= 10) break;
+      }
       is_flushing = false;
     }
     // Flush cached page data to BUS
