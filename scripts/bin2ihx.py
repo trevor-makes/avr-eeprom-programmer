@@ -13,15 +13,16 @@ with open(args.infile, mode="rb") as f:
   data = f.read()
 
 with open(args.outfile, mode="w") as f:
-  address = args.start_address
-  while address < len(data):
-    rec = data[address:address+REC_SIZE]
+  index = 0
+  while index < len(data):
+    rec = data[index:index+REC_SIZE]
     size = len(rec)
 
     # TODO add support for 24/32 bit addresses using 02/04 record types
+    address = index + args.start_address
     f.write(f':{size:02X}{address:04X}00')
     checksum = size + (address >> 8) + (address & 0xFF)
-    address += REC_SIZE
+    index += REC_SIZE
 
     for byte in rec:
       f.write(f'{byte:02X}')
