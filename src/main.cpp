@@ -76,10 +76,7 @@ using Control = core::io::Control<ReadEnable, WriteEnable>;
 // Wrap data with delay adapter to insert required 70+ ns delay between output enable and read
 using Bus = core::io::Bus<AddressPort, DelayRead<DataPort>, Control>;
 
-// Wrap bus with paged write adapter
-// The paged write mode permits an entire page (64 for AT28C64) to be written at once
-// This requires less than 150 us between writes, followed by up to 10 ms of inactivity while programming
-// The adapter will cache the pages on the Arduino and flush writes at once to meet timing requirements
+// Wrap bus with paged write adapter to meet EEPROM write timings
 using PagedBus = PagedWrite<Bus>;
 
 #else
@@ -101,12 +98,14 @@ struct API : core::mon::Base<API> {
   using BUS = PagedBus;
 };
 
+void set_baud(Args);
 void erase(Args);
 void unlock(Args);
 void lock(Args);
 
 void loop() {
   static const core::cli::Command commands[] = {
+    { "baud", set_baud },
     { "hex", core::mon::cmd_hex<API> },
     { "set", core::mon::cmd_set<API> },
     { "fill", core::mon::cmd_fill<API> },
@@ -122,9 +121,17 @@ void loop() {
   serialCli.run_once(commands);
 }
 
+void set_baud(Args args) {
+  CORE_EXPECT_UINT(API, uint32_t, baud, args, return)
+  // https://forum.arduino.cc/t/change-baud-rate-at-runtime/368191
+  Serial.flush();
+  Serial.begin(baud);
+  while (Serial.available()) Serial.read();
+  // NOTE in PlatformIO terminal, type `ctrl-t b` to enter matching baud rate
+}
+
 void erase(Args) {
   // Special command sequence to erase all bytes to FF
-  // Don't used PagedWrite adapter because data polling will fail
   Bus::config_write();
   Bus::write_data(0x5555, 0xAA);
   Bus::write_data(0xAAAA, 0x55);
@@ -137,7 +144,6 @@ void erase(Args) {
 
 void unlock(Args) {
   // Special command sequence to disable software data protection
-  // Don't used PagedWrite adapter because data polling will fail
   Bus::config_write();
   Bus::write_data(0x5555, 0xAA);
   Bus::write_data(0xAAAA, 0x55);
@@ -150,7 +156,6 @@ void unlock(Args) {
 
 void lock(Args) {
   // Special command sequence to enable software data protection
-  // Don't used PagedWrite adapter because data polling will fail
   Bus::config_write();
   Bus::write_data(0x5555, 0xAA);
   Bus::write_data(0xAAAA, 0x55);

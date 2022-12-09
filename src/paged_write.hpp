@@ -6,6 +6,9 @@
 
 #include <stdint.h>
 
+// 28 series EEPROM chips support paged write where a full page may be written in one programming cycle
+// This requires less than 150 us between writes, followed by up to 10 ms of inactivity while programming
+// This adapter caches a page on the Arduino and flushes all writes at once to meet timing requirements
 template <typename BUS, uint8_t PAGE_SIZE = 64>
 struct PagedWrite : BUS {
   using typename BUS::DATA_TYPE;
