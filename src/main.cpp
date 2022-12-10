@@ -47,16 +47,16 @@ CORE_PORT(D)
 
 //      * - D2 |         | x
 //      * - D3 |         | x
-// Data 4 - D4 |         | C5 - MSB Latch Enable
-// Data 5 - D5 |         | C4 - LSB Latch Enable
-// Data 6 - D6 | Arduino | C3 - Bus Read Enable
-// Data 7 - D7 |   NANO  | C2 - Bus Write Enable
+// Data 4 - D4 |         | C5 - MSB Latch Enable (active high)
+// Data 5 - D5 |         | C4 - LSB Latch Enable (active high)
+// Data 6 - D6 | Arduino | C3 - Bus Read Enable (active low)
+// Data 7 - D7 |   NANO  | C2 - Bus Write Enable (active low)
 // Data 0 - B0 |         | C1 - *
 // Data 1 - B1 |         | C0 - *
 // Data 2 - B2 |   ___   | x
 // Data 3 - B3 |  |USB|  | x
 //      * - B4 |__|___|__| B5 - *
-// * unused
+// * unused digital pins
 
 // 8-bit data bus [D7 D6 D5 D4 B3 B2 B1 B0]
 using DataPort = BitExtend<PortD::Mask<0xF0>, PortB::Mask<0x0F>>;
@@ -84,8 +84,6 @@ using PagedBus = PagedWrite<Bus>;
 #endif
 
 void setup() {
-  Bus::config_write();
-
   // Establish serial connection with computer
   Serial.begin(9600);
   while (!Serial) {}
@@ -95,7 +93,7 @@ void setup() {
 struct API : core::mon::Base<API> {
   static StreamEx& get_stream() { return serialEx; }
   static CLI& get_cli() { return serialCli; }
-  using BUS = PagedBus;
+  using BUS = PagedBus; // use paged write mode
 };
 
 void set_baud(Args);
@@ -132,6 +130,7 @@ void set_baud(Args args) {
 
 void erase(Args) {
   // Special command sequence to erase all bytes to FF
+  // Writes need to be sequential; don't use paged write
   Bus::config_write();
   Bus::write_data(0x5555, 0xAA);
   Bus::write_data(0xAAAA, 0x55);
@@ -144,6 +143,7 @@ void erase(Args) {
 
 void unlock(Args) {
   // Special command sequence to disable software data protection
+  // Writes need to be sequential; don't use paged write
   Bus::config_write();
   Bus::write_data(0x5555, 0xAA);
   Bus::write_data(0xAAAA, 0x55);
@@ -156,6 +156,7 @@ void unlock(Args) {
 
 void lock(Args) {
   // Special command sequence to enable software data protection
+  // Writes need to be sequential; don't use paged write
   Bus::config_write();
   Bus::write_data(0x5555, 0xAA);
   Bus::write_data(0xAAAA, 0x55);

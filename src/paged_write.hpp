@@ -29,6 +29,7 @@ struct PagedWrite : BUS {
       flush_write();
       cached_page = page;
     }
+
     // Cache data until page is flushed
     uint8_t index = address & INDEX_MASK;
     page_data[index] = data;
@@ -50,6 +51,7 @@ struct PagedWrite : BUS {
       }
       is_flushing = false;
     }
+
     // Flush cached page data to BUS
     BUS::config_write();
     for (uint8_t i = 0; i < PAGE_SIZE; ++i) { 
@@ -64,6 +66,7 @@ struct PagedWrite : BUS {
         is_flushing = true;
       }
     }
+
     // Propagate flush to parent type in case it does something
     BUS::flush_write();
   }
