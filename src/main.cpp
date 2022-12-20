@@ -24,16 +24,14 @@ using core::io::WordExtend;
 using core::io::Latch;
 
 // EEPROM needs at least 70 ns before reading data after pulling chip select low
-// Wrap the data port with this template to insert the required delay
-// TODO maybe this should be integrated into core::io::Control or Bus
-template <typename DATA>
-struct DelayRead : DATA {
-  using TYPE = typename DATA::TYPE;
-  static inline TYPE read() {
-    // Each NOP delays only 65 ns at 16 MHz, so we need two
+// Wrap the read enable with this template to insert the required delay
+template <typename READ_ENABLE>
+struct DelayRead : READ_ENABLE {
+  static inline void enable() {
+    READ_ENABLE::enable();
+    // Each NOP delays 65 ns at 16 MHz, so we need two for 70+ ns
     __asm__ __volatile__("nop");
     __asm__ __volatile__("nop");
-    return DATA::read();
   }
 };
 
@@ -69,12 +67,11 @@ using AddressLSB = Latch<DataPort, LSBLatch>;
 using AddressPort = WordExtend<AddressMSB, AddressLSB>;
 
 // Bus control lines
-using ReadEnable = ActiveLow<PortC::Bit<3>>;
+using ReadEnable = DelayRead<ActiveLow<PortC::Bit<3>>>; // insert 70 ns delay with DelayRead adapter
 using WriteEnable = ActiveLow<PortC::Bit<2>>;
 using Control = core::io::Control<ReadEnable, WriteEnable>;
 
-// Wrap data with delay adapter to insert required 70+ ns delay between output enable and read
-using Bus = core::io::Bus<AddressPort, DelayRead<DataPort>, Control>;
+using Bus = core::io::Bus<AddressPort, DataPort, Control>;
 
 // Wrap bus with paged write adapter to meet EEPROM write timings
 using PagedBus = PagedWrite<Bus>;
