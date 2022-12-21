@@ -1,4 +1,4 @@
-# ATmega328p EEPROM Programmer
+# Arduino EEPROM Programmer
 
 - Build an EEPROM programmer with an Arduino, two 74HC573 latches, and a 28C EEPROM
 - Command line tools for uploading IHX files built into firmware

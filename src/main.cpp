@@ -9,31 +9,11 @@
 
 #include <Arduino.h>
 
-using core::serial::StreamEx;
-using CLI = core::cli::CLI<>;
-using core::cli::Args;
-
-// Create command line interface around Arduino Serial
-StreamEx serialEx(Serial);
-CLI serialCli(serialEx);
-
 using core::io::ActiveLow;
 using core::io::ActiveHigh;
 using core::io::BitExtend;
 using core::io::WordExtend;
 using core::io::Latch;
-
-// EEPROM needs at least 70 ns before reading data after pulling chip select low
-// Wrap the read enable with this template to insert the required delay
-template <typename READ_ENABLE>
-struct DelayRead : READ_ENABLE {
-  static inline void enable() {
-    READ_ENABLE::enable();
-    // Each NOP delays 65 ns at 16 MHz, so we need two for 70+ ns
-    __asm__ __volatile__("nop");
-    __asm__ __volatile__("nop");
-  }
-};
 
 // Arduino Nano and Uno
 #ifdef __AVR_ATmega328P__
@@ -67,53 +47,77 @@ using AddressLSB = Latch<DataPort, LSBLatch>;
 using AddressPort = WordExtend<AddressMSB, AddressLSB>;
 
 // Bus control lines
-using ReadEnable = DelayRead<ActiveLow<PortC::Bit<3>>>; // insert 70 ns delay with DelayRead adapter
+using ReadEnable = ActiveLow<PortC::Bit<3>>;
 using WriteEnable = ActiveLow<PortC::Bit<2>>;
-using Control = core::io::Control<ReadEnable, WriteEnable>;
-
-using Bus = core::io::Bus<AddressPort, DataPort, Control>;
-
-// Wrap bus with paged write adapter to meet EEPROM write timings
-using PagedBus = PagedWrite<Bus>;
 
 #else
 #error Need to provide configuration for current platform. See __AVR_ATmega328P__ configuration above.
 #endif
 
-void setup() {
-  // Establish serial connection with computer
-  Serial.begin(9600);
-  while (!Serial) {}
-}
+struct Bus : core::io::BaseBus {
+  using ADDRESS_TYPE = AddressPort::TYPE;
+  using DATA_TYPE = DataPort::TYPE;
+
+  static void config_write() {
+    AddressPort::config_output();
+    DataPort::config_output();
+    ReadEnable::config_output();
+    WriteEnable::config_output();
+  }
+
+  static void write_data(ADDRESS_TYPE addr, DATA_TYPE data) {
+    AddressPort::write(addr);
+    WriteEnable::enable();
+    DataPort::write(data);
+    WriteEnable::disable();
+  }
+
+  static void config_read() {
+    AddressPort::config_output();
+    DataPort::config_input();
+    ReadEnable::config_output();
+    WriteEnable::config_output();
+  }
+
+  static DATA_TYPE read_data(ADDRESS_TYPE addr) {
+    // Latch address from data port
+    DataPort::config_output();
+    AddressPort::write(addr);
+    // Begin read sequence
+    DataPort::config_input();
+    ReadEnable::enable();
+    // Wait at least 70 ns for memory to respond
+    // Each CPU cycle at 16 MHz is only 62.5 ns, so wait 2 cycles (125 ns)
+    __asm__ __volatile__("nop");
+    __asm__ __volatile__("nop");
+    // Read data from memory
+    const DATA_TYPE data = DataPort::read();
+    // End read sequence
+    ReadEnable::disable();
+    return data;
+  }
+};
+
+using core::serial::StreamEx;
+using CLI = core::cli::CLI<>;
+using core::cli::Args;
+
+// Create command line interface around Arduino Serial
+StreamEx serialEx(Serial);
+CLI serialCli(serialEx);
 
 // Define interface for core::mon function templates
 struct API : core::mon::Base<API> {
   static StreamEx& get_stream() { return serialEx; }
   static CLI& get_cli() { return serialCli; }
-  using BUS = PagedBus; // use paged write mode
+  // Wrap bus with paged write adapter to meet EEPROM write timings
+  using BUS = PagedWrite<Bus>;
 };
 
-void set_baud(Args);
-void erase(Args);
-void unlock(Args);
-void lock(Args);
-
-void loop() {
-  static const core::cli::Command commands[] = {
-    { "baud", set_baud },
-    { "hex", core::mon::cmd_hex<API> },
-    { "set", core::mon::cmd_set<API> },
-    { "fill", core::mon::cmd_fill<API> },
-    { "move", core::mon::cmd_move<API> },
-    { "export", core::mon::cmd_export<API> },
-    { "import", core::mon::cmd_import<API> },
-    { "verify", core::mon::cmd_verify<API> },
-    { "erase", erase },
-    { "unlock", unlock },
-    { "lock", lock },
-  };
-
-  serialCli.run_once(commands);
+void setup() {
+  // Establish serial connection with computer
+  Serial.begin(9600);
+  while (!Serial) {}
 }
 
 void set_baud(Args args) {
@@ -159,4 +163,22 @@ void lock(Args) {
   Bus::write_data(0xAAAA, 0x55);
   Bus::write_data(0x5555, 0xA0);
   delay(10); // lock takes up to 10 ms
+}
+
+void loop() {
+  static const core::cli::Command commands[] = {
+    { "baud", set_baud },
+    { "hex", core::mon::cmd_hex<API> },
+    { "set", core::mon::cmd_set<API> },
+    { "fill", core::mon::cmd_fill<API> },
+    { "move", core::mon::cmd_move<API> },
+    { "export", core::mon::cmd_export<API> },
+    { "import", core::mon::cmd_import<API> },
+    { "verify", core::mon::cmd_verify<API> },
+    { "erase", erase },
+    { "unlock", unlock },
+    { "lock", lock },
+  };
+
+  serialCli.run_once(commands);
 }
