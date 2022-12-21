@@ -1,6 +1,14 @@
 # ATmega328p EEPROM Programmer
 
-- TODO
+- Build an EEPROM programmer with an Arduino, two 74HC573 latches, and a 28C EEPROM
+- Command line tools for uploading IHX files built into firmware
+
+TODO introduction
+TODO link to youtube
+
+## Assembling the circuit
+
+TODO bus diagram, breadboard photos
 
 ## Building the software
 
@@ -8,15 +16,12 @@ Use the [PlatformIO](https://platformio.org/) plugin for [VSCode](https://code.v
 
 Open the project folder with VSCode, select the environment for your board (`uno`, `nano`, `oldnano`), and click `Upload`.
 
+TODO replace with upload screenshot
 ![](images/platformio.png)
 
 The [core](https://github.com/trevor-makes/core) library is required and PlatformIO will download this into the `.pio` folder.
 
 Distributed under the [MIT license](LICENSE.txt)
-
-## Assembling the circuit
-
-TODO
 
 ## Using the programmer
 
@@ -40,7 +45,7 @@ The plain text data may be copy/pasted into the host terminal or uploaded with a
 >import
 ```
 
-All input following the command will be parsed as Intel HEX and written to the EEPROM.
+All input following the command will be parsed as Intel HEX and written to the EEPROM in paged write mode.
 
 ```
 >verify
@@ -52,7 +57,7 @@ All input following the command will be parsed as Intel HEX and validated agains
 >export [base] [size]
 ```
 
-Prints `size` bytes of data beginning at `base` in Intel HEX format.
+Prints EEPROM data from `base` to `base + size - 1` in Intel HEX format.
 
 ### Special EEPROM commands
 
@@ -82,7 +87,7 @@ Enables software data protection. Attempts to write data will be discarded until
 >hex [base] [size]
 ```
 
-Prints a hex dump of `size` bytes of data beginning at `base`.
+Prints a hex dump of ROM data from `base` to `base + size - 1`.
 
 ```
 >set [base] "string pattern"
@@ -94,16 +99,16 @@ Writes ASCII data to EEPROM starting at `base`. No null terminator is written.
 >set [base] $41 255 %01000001 'A' "strings too"
 ```
 
-Writes integer or ASCII data sequentially to EEPROM starting at `base`.
+Writes byte or ASCII data sequentially to EEPROM starting at `base`.
 
 ```
 >fill [base] [size] [pattern]
 ```
 
-Writes `size` bytes beginning at `base` to byte `pattern`.
+Repeats one-byte `pattern` in EEPROM from `base` to `base + size - 1`.
 
 ```
 >move [source] [size] [dest]
 ```
 
-Copies `size` bytes beginning at `source` to `dest`. Destination may overlap with source.
+Copies EEPROM from [`source`...`source + size - 1`] to [`dest`...`dest + size - 1`]. Destination may overlap with source.
