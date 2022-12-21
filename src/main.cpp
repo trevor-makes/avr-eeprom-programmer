@@ -65,7 +65,7 @@ struct Bus : core::io::BaseBus {
     WriteEnable::config_output();
   }
 
-  static void write_data(ADDRESS_TYPE addr, DATA_TYPE data) {
+  static void write_bus(ADDRESS_TYPE addr, DATA_TYPE data) {
     AddressPort::write(addr);
     WriteEnable::enable();
     DataPort::write(data);
@@ -79,7 +79,7 @@ struct Bus : core::io::BaseBus {
     WriteEnable::config_output();
   }
 
-  static DATA_TYPE read_data(ADDRESS_TYPE addr) {
+  static DATA_TYPE read_bus(ADDRESS_TYPE addr) {
     // Latch address from data port
     DataPort::config_output();
     AddressPort::write(addr);
@@ -133,12 +133,12 @@ void erase(Args) {
   // Special command sequence to erase all bytes to FF
   // Writes need to be sequential; don't use paged write
   Bus::config_write();
-  Bus::write_data(0x5555, 0xAA);
-  Bus::write_data(0xAAAA, 0x55);
-  Bus::write_data(0x5555, 0x80);
-  Bus::write_data(0x5555, 0xAA);
-  Bus::write_data(0xAAAA, 0x55);
-  Bus::write_data(0x5555, 0x10);
+  Bus::write_bus(0x5555, 0xAA);
+  Bus::write_bus(0xAAAA, 0x55);
+  Bus::write_bus(0x5555, 0x80);
+  Bus::write_bus(0x5555, 0xAA);
+  Bus::write_bus(0xAAAA, 0x55);
+  Bus::write_bus(0x5555, 0x10);
   delay(20); // erase takes up to 20 ms
 }
 
@@ -146,12 +146,12 @@ void unlock(Args) {
   // Special command sequence to disable software data protection
   // Writes need to be sequential; don't use paged write
   Bus::config_write();
-  Bus::write_data(0x5555, 0xAA);
-  Bus::write_data(0xAAAA, 0x55);
-  Bus::write_data(0x5555, 0x80);
-  Bus::write_data(0x5555, 0xAA);
-  Bus::write_data(0xAAAA, 0x55);
-  Bus::write_data(0x5555, 0x20);
+  Bus::write_bus(0x5555, 0xAA);
+  Bus::write_bus(0xAAAA, 0x55);
+  Bus::write_bus(0x5555, 0x80);
+  Bus::write_bus(0x5555, 0xAA);
+  Bus::write_bus(0xAAAA, 0x55);
+  Bus::write_bus(0x5555, 0x20);
   delay(10); // unlock takes up to 10 ms
 }
 
@@ -159,9 +159,9 @@ void lock(Args) {
   // Special command sequence to enable software data protection
   // Writes need to be sequential; don't use paged write
   Bus::config_write();
-  Bus::write_data(0x5555, 0xAA);
-  Bus::write_data(0xAAAA, 0x55);
-  Bus::write_data(0x5555, 0xA0);
+  Bus::write_bus(0x5555, 0xAA);
+  Bus::write_bus(0xAAAA, 0x55);
+  Bus::write_bus(0x5555, 0xA0);
   delay(10); // lock takes up to 10 ms
 }
 

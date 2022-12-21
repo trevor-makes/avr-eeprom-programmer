@@ -22,7 +22,7 @@ struct PagedWrite : BUS {
   static bool page_mask[PAGE_SIZE]; // TODO compact bitfield instead of bool array?
   static ADDRESS_TYPE cached_page;
 
-  static void write_data(ADDRESS_TYPE address, DATA_TYPE data) {
+  static void write_bus(ADDRESS_TYPE address, DATA_TYPE data) {
     // If last address was on a different page, flush the last page
     ADDRESS_TYPE page = address & PAGE_MASK;
     if (page != cached_page) {
@@ -45,7 +45,7 @@ struct PagedWrite : BUS {
     if (is_flushing) {
       BUS::config_read();
       auto start = millis();
-      while (BUS::read_data(poll_address) != poll_data) {
+      while (BUS::read_bus(poll_address) != poll_data) {
         // Break after 10 ms in case polling failed (data protection enabled)
         if (millis() - start >= 10) break;
       }
@@ -58,7 +58,7 @@ struct PagedWrite : BUS {
       if (page_mask[i]) {
         ADDRESS_TYPE address = cached_page + i;
         DATA_TYPE data = page_data[i];
-        BUS::write_data(address, data);
+        BUS::write_bus(address, data);
         page_mask[i] = false;
         // Save last written data so next flush can poll until EEPROM is ready
         poll_address = address;
