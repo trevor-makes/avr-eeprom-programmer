@@ -1,5 +1,7 @@
 // Copyright (c) 2022 Trevor Makes
 
+#include "debug.hpp"
+
 #include "paged_write.hpp"
 
 #include "core/io.hpp"
@@ -179,6 +181,9 @@ void loop() {
     { "erase", erase },
     { "unlock", unlock },
     { "lock", lock },
+    { "write", write_bus<API> },
+    { "read", read_bus<API> },
+    { "page", page_write<API> },
   };
 
   serialCli.run_once(commands);
