@@ -86,8 +86,9 @@ struct Bus : core::io::BaseBus {
     // Begin read sequence
     DataPort::config_input();
     ReadEnable::enable();
-    // Wait at least 70 ns for memory to respond
-    // Each CPU cycle at 16 MHz is only 62.5 ns, so wait 2 cycles (125 ns)
+    // AT28C64B tOE max (latency from output enable to output) is 70 ns
+    // ATmega328p tpd max (port read latency) is 1.5 cycles (93.75 ns @ 16 MHz)
+    // 2 cycle delay (125 ns) between enable and read seems to work fine
     __asm__ __volatile__("nop");
     __asm__ __volatile__("nop");
     // Read data from memory
