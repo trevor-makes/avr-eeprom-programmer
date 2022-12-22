@@ -38,6 +38,7 @@ void write_bus(core::cli::Args args) {
 
   auto t1 = micros();
   BUS::write_bus(addr, data);
+  BUS::flush_write();
   auto t2 = micros();
   BUS::flush_write();
   auto t3 = micros();
@@ -81,6 +82,7 @@ void page_write(core::cli::Args args) {
   for (uint8_t index = 0; index < PAGE_SIZE; ++index) {
     BUS::write_bus(page + index, index);
   }
+  BUS::flush_write();
   auto t2 = micros();
 
   // Measure data polling to completion
@@ -90,4 +92,29 @@ void page_write(core::cli::Args args) {
   API::get_stream().println(t2 - t1); // write_bus x PAGE_SIZE
   API::get_stream().println(t3 - t2); // flush_write
   API::get_stream().println(t3 - t1); // write_bus + flush_write
+}
+
+template <typename API, uint8_t PAGE_SIZE = 64>
+void page_read(core::cli::Args args) {
+  using BUS = typename API::BUS;
+  using ADDRESS = typename BUS::ADDRESS_TYPE;
+
+  CORE_EXPECT_UINT(API, ADDRESS, page, args, return)
+  BUS::config_read();
+
+  // Mask off just the page from the given address
+  const ADDRESS INDEX_MASK = PAGE_SIZE - 1;
+  const ADDRESS PAGE_MASK = ~INDEX_MASK;
+  page &= PAGE_MASK;
+
+  // Measure time to load page data
+  uint8_t checksum = 0;
+  auto t1 = micros();
+  for (uint8_t index = 0; index < PAGE_SIZE; ++index) {
+    checksum += BUS::read_bus(page + index);
+  }
+  auto t2 = micros();
+
+  API::get_stream().println(checksum, HEX);
+  API::get_stream().println(t2 - t1); // read_bus x PAGE_SIZE
 }

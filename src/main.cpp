@@ -140,7 +140,8 @@ void loop() {
     { "lock", lock },
     { "write", write_bus<API> },
     { "read", read_bus<API> },
-    { "page", page_write<API> },
+    { "pagew", page_write<API> },
+    { "pager", page_read<API> },
   };
 
   serialCli.run_once(commands);

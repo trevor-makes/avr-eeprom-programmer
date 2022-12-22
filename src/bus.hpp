@@ -9,8 +9,8 @@
 
 template <typename ADDRESS, typename DATA, typename RE, typename WE>
 struct PortBus : core::io::BaseBus {
-  using ADDRESS_TYPE = ADDRESS::TYPE;
-  using DATA_TYPE = DATA::TYPE;
+  using ADDRESS_TYPE = typename ADDRESS::TYPE;
+  using DATA_TYPE = typename DATA::TYPE;
 
   static void config_write() {
     ADDRESS::config_output();
@@ -38,14 +38,11 @@ struct PortBus : core::io::BaseBus {
     DATA::config_output();
     ADDRESS::write(addr);
     // Begin read sequence
-    DATA::config_input();
     RE::enable();
     // AT28C64B tOE max (latency from output enable to output) is 70 ns
     // ATmega328p tpd max (port read latency) is 1.5 cycles (93.75 ns @ 16 MHz)
-    // 2 cycle delay (125 ns) between enable and read seems to work fine
-    __asm__ __volatile__("nop");
-    __asm__ __volatile__("nop");
-    // Read data from memory
+    // config_input should take at least a couple cycles, enough to cover latency
+    DATA::config_input();
     const DATA_TYPE data = DATA::read();
     // End read sequence
     RE::disable();
