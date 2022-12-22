@@ -1,8 +1,7 @@
 // Copyright (c) 2022 Trevor Makes
 
 #include "debug.hpp"
-
-#include "paged_write.hpp"
+#include "bus.hpp"
 
 #include "core/io.hpp"
 #include "core/io/bus.hpp"
@@ -56,50 +55,8 @@ using WriteEnable = ActiveLow<PortC::Bit<2>>;
 #error Need to provide configuration for current platform. See __AVR_ATmega328P__ configuration above.
 #endif
 
-struct Bus : core::io::BaseBus {
-  using ADDRESS_TYPE = AddressPort::TYPE;
-  using DATA_TYPE = DataPort::TYPE;
-
-  static void config_write() {
-    AddressPort::config_output();
-    DataPort::config_output();
-    ReadEnable::config_output();
-    WriteEnable::config_output();
-  }
-
-  static void write_bus(ADDRESS_TYPE addr, DATA_TYPE data) {
-    AddressPort::write(addr);
-    WriteEnable::enable();
-    DataPort::write(data);
-    WriteEnable::disable();
-  }
-
-  static void config_read() {
-    AddressPort::config_output();
-    DataPort::config_input();
-    ReadEnable::config_output();
-    WriteEnable::config_output();
-  }
-
-  static DATA_TYPE read_bus(ADDRESS_TYPE addr) {
-    // Latch address from data port
-    DataPort::config_output();
-    AddressPort::write(addr);
-    // Begin read sequence
-    DataPort::config_input();
-    ReadEnable::enable();
-    // AT28C64B tOE max (latency from output enable to output) is 70 ns
-    // ATmega328p tpd max (port read latency) is 1.5 cycles (93.75 ns @ 16 MHz)
-    // 2 cycle delay (125 ns) between enable and read seems to work fine
-    __asm__ __volatile__("nop");
-    __asm__ __volatile__("nop");
-    // Read data from memory
-    const DATA_TYPE data = DataPort::read();
-    // End read sequence
-    ReadEnable::disable();
-    return data;
-  }
-};
+// See read and write timings in bus.hpp
+using Bus = PortBus<AddressPort, DataPort, ReadEnable, WriteEnable>;
 
 using core::serial::StreamEx;
 using CLI = core::cli::CLI<>;

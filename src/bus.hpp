@@ -3,8 +3,55 @@
 #pragma once
 
 #include "core/util.hpp"
+#include "core/io/bus.hpp"
 
 #include <stdint.h>
+
+template <typename ADDRESS, typename DATA, typename RE, typename WE>
+struct PortBus : core::io::BaseBus {
+  using ADDRESS_TYPE = ADDRESS::TYPE;
+  using DATA_TYPE = DATA::TYPE;
+
+  static void config_write() {
+    ADDRESS::config_output();
+    DATA::config_output();
+    RE::config_output();
+    WE::config_output();
+  }
+
+  static void write_bus(ADDRESS_TYPE addr, DATA_TYPE data) {
+    ADDRESS::write(addr);
+    WE::enable();
+    DATA::write(data);
+    WE::disable();
+  }
+
+  static void config_read() {
+    ADDRESS::config_output();
+    DATA::config_input();
+    RE::config_output();
+    WE::config_output();
+  }
+
+  static DATA_TYPE read_bus(ADDRESS_TYPE addr) {
+    // Latch address from data port
+    DATA::config_output();
+    ADDRESS::write(addr);
+    // Begin read sequence
+    DATA::config_input();
+    RE::enable();
+    // AT28C64B tOE max (latency from output enable to output) is 70 ns
+    // ATmega328p tpd max (port read latency) is 1.5 cycles (93.75 ns @ 16 MHz)
+    // 2 cycle delay (125 ns) between enable and read seems to work fine
+    __asm__ __volatile__("nop");
+    __asm__ __volatile__("nop");
+    // Read data from memory
+    const DATA_TYPE data = DATA::read();
+    // End read sequence
+    RE::disable();
+    return data;
+  }
+};
 
 // 28 series EEPROM chips support paged write where a full page may be written in one programming cycle
 // This requires less than 150 us between writes, followed by up to 10 ms of inactivity while programming
