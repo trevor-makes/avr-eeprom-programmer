@@ -11,7 +11,7 @@ Check out the video tutorial on YouTube [HERE](https://www.youtube.com/watch?v=L
 
 ![](images/breadboard.jpg)
 
-![](images/schematic.jpg)
+![](images/Schematic.png)
 
 ## Building the software
 
