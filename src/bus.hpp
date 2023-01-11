@@ -41,7 +41,8 @@ struct PortBus : core::io::BaseBus {
     RE::enable();
     // AT28C64B tOE max (latency from output enable to output) is 70 ns
     // ATmega328p tpd max (port read latency) is 1.5 cycles (93.75 ns @ 16 MHz)
-    // config_input should take at least a couple cycles, enough to cover latency
+    // Empirically found 2 cycles (125 ns) between enable() and read() to be just enough delay
+    // config_input should always take at least 2 cycles, accounting for read latency
     DATA::config_input();
     const DATA_TYPE data = DATA::read();
     // End read sequence

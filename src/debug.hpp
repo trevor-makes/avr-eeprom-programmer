@@ -99,7 +99,7 @@ void page_read(core::cli::Args args) {
   using BUS = typename API::BUS;
   using ADDRESS = typename BUS::ADDRESS_TYPE;
 
-  CORE_EXPECT_UINT(API, ADDRESS, page, args, return)
+  CORE_OPTION_UINT(API, ADDRESS, page, 0, args, return)
   BUS::config_read();
 
   // Mask off just the page from the given address
