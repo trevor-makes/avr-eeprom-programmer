@@ -3,12 +3,13 @@
 - Build an EEPROM programmer with an Arduino, two 74HC573 latches, and a 28C EEPROM
 - Command line tools for uploading IHX files built into firmware
 
-TODO introduction
-TODO link to youtube
+![](images/angled.jpg)
+
+Check out the video tutorial on YouTube [HERE](https://www.youtube.com/watch?v=L5m1qhdjgNw)
 
 ## Assembling the circuit
 
-TODO bus diagram, breadboard photos
+![](images/breadboard.jpg)
 
 ## Building the software
 
@@ -16,7 +17,6 @@ Use the [PlatformIO](https://platformio.org/) plugin for [VSCode](https://code.v
 
 Open the project folder with VSCode, select the environment for your board (`uno`, `nano`, `oldnano`), and click `Upload`.
 
-TODO replace with upload screenshot
 ![](images/platformio.png)
 
 The [core](https://github.com/trevor-makes/core) library is required and PlatformIO will download this into the `.pio` folder.
