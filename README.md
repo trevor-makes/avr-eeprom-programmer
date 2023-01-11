@@ -3,13 +3,15 @@
 - Build an EEPROM programmer with an Arduino, two 74HC573 latches, and a 28C EEPROM
 - Command line tools for uploading IHX files built into firmware
 
-![](images/angled.jpg)
-
 Check out the video tutorial on YouTube [HERE](https://www.youtube.com/watch?v=L5m1qhdjgNw)
+
+![](images/angled.jpg)
 
 ## Assembling the circuit
 
 ![](images/breadboard.jpg)
+
+![](images/schematic.jpg)
 
 ## Building the software
 
