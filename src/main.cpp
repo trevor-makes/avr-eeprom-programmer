@@ -138,10 +138,11 @@ void loop() {
     { "erase", erase },
     { "unlock", unlock },
     { "lock", lock },
-    { "write", write_bus<API> },
-    { "read", read_bus<API> },
-    { "pagew", page_write<API> },
-    { "pager", page_read<API> },
+    // Debug commands for measuring read/write throughput
+    //{ "write", write_bus<API> },
+    //{ "read", read_bus<API> },
+    //{ "pagew", page_write<API> },
+    //{ "pager", page_read<API> },
   };
 
   serialCli.run_once(commands);
