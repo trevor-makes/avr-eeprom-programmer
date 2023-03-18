@@ -136,14 +136,6 @@ void lock(Args) {
   delay(10); // lock takes up to 10 ms
 }
 
-template <typename BUS>
-void debug_bus(Args args) {
-  CORE_EXPECT_UINT(API, uint16_t, addr, args, return)
-  CORE_EXPECT_UINT(API, uint8_t, data, args, return)
-  BUS::config_write();
-  BUS::write_bus(addr, data);
-}
-
 void loop_eeprom() {
   static const core::cli::Command commands[] = {
     { "baud", set_baud },
@@ -157,7 +149,6 @@ void loop_eeprom() {
     { "erase", erase },
     { "unlock", unlock },
     { "lock", lock },
-    { "debug", debug_bus<Bus> },
   };
 
   serialCli.run_once(commands);
@@ -169,7 +160,6 @@ void loop_rom() {
     { "hex", core::mon::cmd_hex<API_ROM> },
     { "export", core::mon::cmd_export<API_ROM> },
     { "verify", core::mon::cmd_verify<API_ROM> },
-    { "debug", debug_bus<Bus_ROM> },
   };
 
   serialCli.run_once(commands);
