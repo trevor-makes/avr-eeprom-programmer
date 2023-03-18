@@ -50,7 +50,7 @@ using AddressPort = WordExtend<AddressMSB, AddressLSB>;
 // Alternate data port for 2364 address MSB latch [- - - B3 C2 B2 B1 B0]
 // From the 28C pinout, 2364 ROM swaps A12 for A11 and A11 for /CE (C2)
 // TODO make variadic templates for BitExtend and Overlay
-using DataMSB_ROM = BitExtend<PortB::Mask<0x08>, BitExtend<PortC::Bit<2>, PortB::Mask<0x07>>>;
+using DataMSB_ROM = BitExtend<PortB::Bit<3>, PortC::Bit<2>, PortB::Mask<0x07>>;
 using AddressMSB_ROM = Latch<DataMSB_ROM, MSBLatch>;
 using AddressPort_ROM = WordExtend<AddressMSB_ROM, AddressLSB>;
 
