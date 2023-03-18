@@ -40,9 +40,9 @@ struct PortBus : core::io::BaseBus {
     // Begin read sequence
     DATA::config_input();
     RE::enable();
-    // AT28C64B tOE max (latency from output enable to output) is 70 ns
-    // ATmega328p tpd max (port read latency) is 1.5 cycles (93.75 ns @ 16 MHz)
-    // Empirically found 2 NOP cycles (125 ns) to add just enough delay
+    // Increase latency to 250 ns for 2364 ROMs
+    __asm__ __volatile__ ("nop"); // delay 62.5 ns
+    __asm__ __volatile__ ("nop"); // delay 62.5 ns
     __asm__ __volatile__ ("nop"); // delay 62.5 ns
     __asm__ __volatile__ ("nop"); // delay 62.5 ns
     const DATA_TYPE data = DATA::read();
