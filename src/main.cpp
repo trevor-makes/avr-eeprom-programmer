@@ -14,8 +14,6 @@ using core::io::ActiveLow;
 using core::io::ActiveHigh;
 using core::io::BitExtend;
 using core::io::WordExtend;
-using core::io::LeftShift;
-using core::io::Overlay;
 using core::io::Latch;
 
 // Arduino Nano and Uno
@@ -49,23 +47,11 @@ using AddressMSB = Latch<DataPort, MSBLatch>;
 using AddressLSB = Latch<DataPort, LSBLatch>;
 using AddressPort = WordExtend<AddressMSB, AddressLSB>;
 
-
-// TODO make Overlay work with ROMLatch and A11; use instead of AddressMSB_ROM
-struct AddressMSB_ROM {
-  using ROMData = Overlay<LeftShift<PortB::Mask<0x08>, 1>, PortB::Mask<0x07>>;
-  using ROMLatch = Latch<ROMData, MSBLatch>;
-  using A11 = LeftShift<PortC::Bit<2>, 1>;
-
-  using TYPE = uint8_t;
-  static inline void config_output() {
-    ROMLatch::config_output();
-    A11::config_output();
-  }
-  static inline void write(TYPE data) {
-    ROMLatch::write(data);
-    A11::write(data);
-  }
-};
+// Alternate data port for 2364 address MSB latch [- - - B3 C2 B2 B1 B0]
+// From the 28C pinout, 2364 ROM swaps A12 for A11 and A11 for /CE (C2)
+// TODO make variadic templates for BitExtend and Overlay
+using DataMSB_ROM = BitExtend<PortB::Mask<0x08>, BitExtend<PortC::Bit<2>, PortB::Mask<0x07>>>;
+using AddressMSB_ROM = Latch<DataMSB_ROM, MSBLatch>;
 using AddressPort_ROM = WordExtend<AddressMSB_ROM, AddressLSB>;
 
 // Bus control lines
