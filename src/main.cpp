@@ -8,8 +8,6 @@
 #include "core/cli.hpp"
 #include "core/mon.hpp"
 
-#include <Arduino.h>
-
 using core::io::ActiveLow;
 using core::io::ActiveHigh;
 using core::io::BitExtend;
@@ -82,11 +80,13 @@ void setup() {
 
 void set_baud(Args args) {
   CORE_EXPECT_UINT(API, uint32_t, baud, args, return)
+  // NOTE in PlatformIO terminal, type `ctrl-t b` to enter matching baud rate
+  Serial.print(F("Type: ctrl-t b "));
+  Serial.println(baud);
   // https://forum.arduino.cc/t/change-baud-rate-at-runtime/368191
   Serial.flush();
   Serial.begin(baud);
   while (Serial.available()) Serial.read();
-  // NOTE in PlatformIO terminal, type `ctrl-t b` to enter matching baud rate
 }
 
 void erase(Args) {
@@ -127,17 +127,17 @@ void lock(Args) {
 
 void loop() {
   static const core::cli::Command commands[] = {
-    { "baud", set_baud },
-    { "hex", core::mon::cmd_hex<API> },
-    { "set", core::mon::cmd_set<API> },
-    { "fill", core::mon::cmd_fill<API> },
-    { "move", core::mon::cmd_move<API> },
-    { "export", core::mon::cmd_export<API> },
-    { "import", core::mon::cmd_import<API> },
-    { "verify", core::mon::cmd_verify<API> },
-    { "erase", erase },
-    { "unlock", unlock },
-    { "lock", lock },
+    { F("baud"), set_baud },
+    { F("hex"), core::mon::cmd_hex<API> },
+    { F("set"), core::mon::cmd_set<API> },
+    { F("fill"), core::mon::cmd_fill<API> },
+    { F("move"), core::mon::cmd_move<API> },
+    { F("export"), core::mon::cmd_export<API> },
+    { F("import"), core::mon::cmd_import<API> },
+    { F("verify"), core::mon::cmd_verify<API> },
+    { F("erase"), erase },
+    { F("unlock"), unlock },
+    { F("lock"), lock },
     // Debug commands for measuring read/write throughput
     //{ "write", write_bus<API> },
     //{ "read", read_bus<API> },
@@ -145,5 +145,5 @@ void loop() {
     //{ "pager", page_read<API> },
   };
 
-  serialCli.run_once(commands);
+  serialCli.prompt(commands);
 }
