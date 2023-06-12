@@ -8,8 +8,6 @@
 #include "core/cli.hpp"
 #include "core/mon.hpp"
 
-#include <Arduino.h>
-
 using core::io::ActiveLow;
 using core::io::ActiveHigh;
 using core::io::BitExtend;
@@ -93,11 +91,13 @@ struct API_ROM : core::mon::Base<API_ROM> {
 
 void set_baud(Args args) {
   CORE_EXPECT_UINT(API, uint32_t, baud, args, return)
+  // NOTE in PlatformIO terminal, type `ctrl-t b` to enter matching baud rate
+  Serial.print(F("Type: ctrl-t b "));
+  Serial.println(baud);
   // https://forum.arduino.cc/t/change-baud-rate-at-runtime/368191
   Serial.flush();
   Serial.begin(baud);
   while (Serial.available()) Serial.read();
-  // NOTE in PlatformIO terminal, type `ctrl-t b` to enter matching baud rate
 }
 
 void erase(Args) {
@@ -138,31 +138,31 @@ void lock(Args) {
 
 void loop_eeprom() {
   static const core::cli::Command commands[] = {
-    { "baud", set_baud },
-    { "hex", core::mon::cmd_hex<API> },
-    { "set", core::mon::cmd_set<API> },
-    { "fill", core::mon::cmd_fill<API> },
-    { "move", core::mon::cmd_move<API> },
-    { "export", core::mon::cmd_export<API> },
-    { "import", core::mon::cmd_import<API> },
-    { "verify", core::mon::cmd_verify<API> },
-    { "erase", erase },
-    { "unlock", unlock },
-    { "lock", lock },
+    { F("baud"), set_baud },
+    { F("hex"), core::mon::cmd_hex<API> },
+    { F("set"), core::mon::cmd_set<API> },
+    { F("fill"), core::mon::cmd_fill<API> },
+    { F("move"), core::mon::cmd_move<API> },
+    { F("export"), core::mon::cmd_export<API> },
+    { F("import"), core::mon::cmd_import<API> },
+    { F("verify"), core::mon::cmd_verify<API> },
+    { F("erase"), erase },
+    { F("unlock"), unlock },
+    { F("lock"), lock },
   };
 
-  serialCli.run_once(commands);
+  serialCli.prompt(commands);
 }
 
 void loop_rom() {
   static const core::cli::Command commands[] = {
-    { "baud", set_baud },
-    { "hex", core::mon::cmd_hex<API_ROM> },
-    { "export", core::mon::cmd_export<API_ROM> },
-    { "verify", core::mon::cmd_verify<API_ROM> },
+    { F("baud"), set_baud },
+    { F("hex"), core::mon::cmd_hex<API_ROM> },
+    { F("export"), core::mon::cmd_export<API_ROM> },
+    { F("verify"), core::mon::cmd_verify<API_ROM> },
   };
 
-  serialCli.run_once(commands);
+  serialCli.prompt(commands);
 }
 
 void (*loop_fn)();
@@ -178,11 +178,11 @@ void setup() {
 
   // Read if jumper set to Vcc or A13 (low)
   if (ModeSelect::is_set()) {
-    Serial.println("2364 ROM mode");
+    Serial.println(F("2364 ROM mode"));
     loop_fn = loop_rom;
   } else {
     // TODO set A13 high and check ModeSelect now set
-    Serial.println("28C EEPROM mode");
+    Serial.println(F("28C EEPROM mode"));
     ChipEnable::config_output();
     ChipEnable::enable();
     loop_fn = loop_eeprom;
